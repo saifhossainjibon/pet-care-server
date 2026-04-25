@@ -228,7 +228,7 @@ async function connectToDatabase() {
 app.get("/", (req, res) => {
   res.send("Pet care server running");
 });
-
+// --------------PET----------------
 // GET all pets
 app.get("/pets", async (req, res) => {
   try {
@@ -291,7 +291,158 @@ app.delete("/pets/:id", async (req, res) => {
     res.status(500).send({ error: error.message });
   }
 });
+// ------------Doctors-------------------
+// GET all doctors
+app.get("/doctors", async (req, res) => {
+  try {
+    const { db } = await connectToDatabase();
+    const doctorsCollection = db.collection("doctors");
+    const doctors = await doctorsCollection.find({}).toArray();
+    res.send(doctors);
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
 
+// CREATE doctor
+app.post("/doctors", async (req, res) => {
+  try {
+    const { db } = await connectToDatabase();
+    const doctorsCollection = db.collection("doctors");
+    const newDoctor = req.body;
+
+    console.log("Adding doctor:", newDoctor);
+
+    const result = await doctorsCollection.insertOne(newDoctor);
+    const savedDoctor = await doctorsCollection.findOne({
+      _id: result.insertedId,
+    });
+
+    res.send(savedDoctor);
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
+
+// UPDATE doctor
+app.put("/doctors/:id", async (req, res) => {
+  try {
+    const { db } = await connectToDatabase();
+    const doctorsCollection = db.collection("doctors");
+    const id = req.params.id;
+    const updatedDoctor = req.body;
+
+    await doctorsCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: updatedDoctor }
+    );
+
+    const doctor = await doctorsCollection.findOne({
+      _id: new ObjectId(id),
+    });
+
+    res.send(doctor);
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
+
+// DELETE doctor
+app.delete("/doctors/:id", async (req, res) => {
+  try {
+    const { db } = await connectToDatabase();
+    const doctorsCollection = db.collection("doctors");
+    const id = req.params.id;
+
+    const result = await doctorsCollection.deleteOne({
+      _id: new ObjectId(id),
+    });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).send({ error: "Doctor not found" });
+    }
+
+    res.send({ message: "Doctor deleted successfully" });
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
+// ----------------clinics---------------------
+// GET all clinics
+app.get("/clinics", async (req, res) => {
+  try {
+    const { db } = await connectToDatabase();
+    const clinicsCollection = db.collection("clinics");
+    const clinics = await clinicsCollection.find({}).toArray();
+    res.send(clinics);
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
+
+// CREATE clinic
+app.post("/clinics", async (req, res) => {
+  try {
+    const { db } = await connectToDatabase();
+    const clinicsCollection = db.collection("clinics");
+    const newClinic = req.body;
+
+    console.log("Adding clinic:", newClinic);
+
+    const result = await clinicsCollection.insertOne(newClinic);
+    const savedClinic = await clinicsCollection.findOne({
+      _id: result.insertedId,
+    });
+
+    res.send(savedClinic);
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
+
+// UPDATE clinic
+app.put("/clinics/:id", async (req, res) => {
+  try {
+    const { db } = await connectToDatabase();
+    const clinicsCollection = db.collection("clinics");
+    const id = req.params.id;
+    const updatedClinic = req.body;
+
+    await clinicsCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: updatedClinic }
+    );
+
+    const clinic = await clinicsCollection.findOne({
+      _id: new ObjectId(id),
+    });
+
+    res.send(clinic);
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
+
+// DELETE clinic
+app.delete("/clinics/:id", async (req, res) => {
+  try {
+    const { db } = await connectToDatabase();
+    const clinicsCollection = db.collection("clinics");
+    const id = req.params.id;
+
+    const result = await clinicsCollection.deleteOne({
+      _id: new ObjectId(id),
+    });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).send({ error: "Clinic not found" });
+    }
+
+    res.send({ message: "Clinic deleted successfully" });
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
 // For local development only
 if (process.env.NODE_ENV !== 'production') {
   const port = process.env.PORT || 3000;
