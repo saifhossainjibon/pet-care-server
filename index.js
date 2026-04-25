@@ -443,6 +443,195 @@ app.delete("/clinics/:id", async (req, res) => {
     res.status(500).send({ error: error.message });
   }
 });
+
+
+
+
+
+
+
+// ----------------appointments---------------------
+
+// GET all appointments
+app.get("/appointments", async (req, res) => {
+  try {
+    const { db } = await connectToDatabase();
+    const collection = db.collection("appointments");
+    const data = await collection.find({}).toArray();
+    res.send(data);
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
+
+// CREATE appointment
+app.post("/appointments", async (req, res) => {
+  try {
+    const { db } = await connectToDatabase();
+    const collection = db.collection("appointments");
+    const newItem = req.body;
+
+    console.log("Adding appointment:", newItem);
+
+    const result = await collection.insertOne(newItem);
+    const savedItem = await collection.findOne({
+      _id: result.insertedId,
+    });
+
+    res.send(savedItem);
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
+
+// UPDATE appointment
+app.put("/appointments/:id", async (req, res) => {
+  try {
+    const { db } = await connectToDatabase();
+    const collection = db.collection("appointments");
+    const id = req.params.id;
+    const updatedItem = req.body;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).send({ error: "Invalid ID" });
+    }
+
+    const result = await collection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: updatedItem }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).send({ error: "Appointment not found" });
+    }
+
+    const item = await collection.findOne({
+      _id: new ObjectId(id),
+    });
+
+    res.send(item);
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
+
+// DELETE appointment
+app.delete("/appointments/:id", async (req, res) => {
+  try {
+    const { db } = await connectToDatabase();
+    const collection = db.collection("appointments");
+    const id = req.params.id;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).send({ error: "Invalid ID" });
+    }
+
+    const result = await collection.deleteOne({
+      _id: new ObjectId(id),
+    });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).send({ error: "Appointment not found" });
+    }
+
+    res.send({ message: "Appointment deleted successfully" });
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
+
+
+
+
+// ----------------medical records---------------------
+
+// GET all medical records
+app.get("/medical-records", async (req, res) => {
+  try {
+    const { db } = await connectToDatabase();
+    const collection = db.collection("medicalRecords");
+    const data = await collection.find({}).toArray();
+    res.send(data);
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
+
+// CREATE medical record
+app.post("/medical-records", async (req, res) => {
+  try {
+    const { db } = await connectToDatabase();
+    const collection = db.collection("medicalRecords");
+    const newItem = req.body;
+
+    console.log("Adding medical record:", newItem);
+
+    const result = await collection.insertOne(newItem);
+    const savedItem = await collection.findOne({
+      _id: result.insertedId,
+    });
+
+    res.send(savedItem);
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
+
+// UPDATE medical record
+app.put("/medical-records/:id", async (req, res) => {
+  try {
+    const { db } = await connectToDatabase();
+    const collection = db.collection("medicalRecords");
+    const id = req.params.id;
+    const updatedItem = req.body;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).send({ error: "Invalid ID" });
+    }
+
+    const result = await collection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: updatedItem }
+    );
+
+    if (result.matchedCount === 0) {
+      return res.status(404).send({ error: "Medical record not found" });
+    }
+
+    const item = await collection.findOne({
+      _id: new ObjectId(id),
+    });
+
+    res.send(item);
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
+
+// DELETE medical record
+app.delete("/medical-records/:id", async (req, res) => {
+  try {
+    const { db } = await connectToDatabase();
+    const collection = db.collection("medicalRecords");
+    const id = req.params.id;
+
+    if (!ObjectId.isValid(id)) {
+      return res.status(400).send({ error: "Invalid ID" });
+    }
+
+    const result = await collection.deleteOne({
+      _id: new ObjectId(id),
+    });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).send({ error: "Medical record not found" });
+    }
+
+    res.send({ message: "Medical record deleted successfully" });
+  } catch (error) {
+    res.status(500).send({ error: error.message });
+  }
+});
 // For local development only
 if (process.env.NODE_ENV !== 'production') {
   const port = process.env.PORT || 3000;
