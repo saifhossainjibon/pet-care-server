@@ -192,12 +192,19 @@ const express = require("express");
 const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
-
+const OpenAI = require('openai');
+require('dotenv').config()
 // middleware
 app.use(cors());
 app.use(express.json());
 
 const uri = process.env.MONGODB_URI || "mongodb+srv://petcareUserDb:nOiLnukCiFlsa13n@cluster0.jpvot78.mongodb.net/?appName=Cluster0";
+
+
+// Initialize OpenAI
+const openai = new OpenAI({
+  apiKey: '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',
+});
 
 // Database connection caching for Vercel
 let cachedClient = null;
@@ -632,6 +639,73 @@ app.delete("/medical-records/:id", async (req, res) => {
     res.status(500).send({ error: error.message });
   }
 });
+
+
+// ============= AI SYMPTOM CHECKER ENDPOINT =============
+app.post('/api/ai-symptom-check', async (req, res) => {
+  try {
+    const { symptoms, petType, petAge, petName, petBreed, petWeight } = req.body;
+    
+    console.log("Received request:", { symptoms, petType, petAge, petName });
+    
+    // Pet information for AI
+    const petInfo = `
+      Pet Name: ${petName || 'Unknown'}
+      Pet Type: ${petType || 'Unknown'}
+      Age: ${petAge || 'Unknown'}
+      Breed: ${petBreed || 'Unknown'}
+      Weight: ${petWeight || 'Unknown'}
+    `;
+    
+    const prompt = `
+      As a veterinary AI assistant, analyze these symptoms for this pet:
+      
+      ${petInfo}
+      
+      Symptoms: ${symptoms.join(', ')}
+      
+      Please provide:
+      1. Possible condition (short name)
+      2. Severity level (choose one: Mild, Moderate, Severe, Urgent)
+      3. Recommended specialty (choose one: General, Dermatology, Internal Medicine, Surgery, Cardiology, Neurology, Orthopedics, Ophthalmology, Dentistry)
+      4. Brief description of the condition (1-2 sentences)
+      5. Immediate care suggestions (what the owner can do right now)
+      6. Recommendation (choose one: Home care, Visit vet within 3 days, Visit vet within 24 hours, Emergency)
+      
+      Format the response as JSON with these exact keys: condition, severity, specialty, description, immediateCare, recommendation
+    `;
+    
+    // For now, return mock data since OpenAI might not be configured
+    // This will help you test if the endpoint is working
+    const mockResponse = {
+      condition: "Seasonal Allergies",
+      severity: "Mild",
+      specialty: "Dermatology",
+      description: "Your pet appears to have seasonal allergies causing itching and discomfort.",
+      immediateCare: "Keep your pet in a clean environment, wipe paws after walks, consider antihistamines after consulting vet.",
+      recommendation: "Visit vet within 3 days"
+    };
+    
+    // Find matching doctors based on specialty
+    const { db } = await connectToDatabase();
+    const doctorsCollection = db.collection("doctors");
+    
+    const matchedDoctors = await doctorsCollection.find({
+      specialties: { $regex: mockResponse.specialty, $options: 'i' }
+    }).limit(5).toArray();
+    
+    res.json({
+      aiResult: mockResponse,
+      recommendedDoctors: matchedDoctors
+    });
+    
+  } catch (error) {
+    console.error('AI Symptom Check Error:', error);
+    res.status(500).json({ error: error.message });
+  }
+});
+
+
 // For local development only
 if (process.env.NODE_ENV !== 'production') {
   const port = process.env.PORT || 3000;
