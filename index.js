@@ -641,7 +641,7 @@ app.delete("/medical-records/:id", async (req, res) => {
 });
 
 
-// ============= AI SYMPTOM CHECKER ENDPOINT =============
+// ============= AI SYMPTOM CHECKER ENDPOINT here =============
 app.post('/api/ai-symptom-check', async (req, res) => {
   try {
     const { symptoms, petType, petAge, petName, petBreed, petWeight } = req.body;
