@@ -186,24 +186,28 @@
 
 
 
-
-
+const dns = require('node:dns');
+dns.setServers(['1.1.1.1', '8.8.8.8']);
 const express = require("express");
 const cors = require("cors");
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const app = express();
 const OpenAI = require('openai');
 require('dotenv').config()
+
 // middleware
 app.use(cors());
 app.use(express.json());
 
 const uri = process.env.MONGODB_URI || "mongodb+srv://petcareUserDb:nOiLnukCiFlsa13n@cluster0.jpvot78.mongodb.net/?appName=Cluster0";
 
-
-// Initialize OpenAI
-const openai = new OpenAI({
-  apiKey: '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',
+const openrouter = new OpenAI({
+  baseURL: 'https://openrouter.ai/api/v1',  // OpenRouter endpoint
+  apiKey: process.env.OPENROUTER_API_KEY || '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',
+  defaultHeaders: {
+    'HTTP-Referer': 'https://pet-care-server.vercel.app', // Your site URL
+    'X-Title': 'Pet Care AI Symptom Assistant', // Site name for analytics
+  }
 });
 
 // Database connection caching for Vercel
@@ -641,12 +645,26 @@ app.delete("/medical-records/:id", async (req, res) => {
 });
 
 
-// ============= AI SYMPTOM CHECKER ENDPOINT here =============
+// ============= AI SYMPTOM CHECKER ENDPOINT (REAL OPENAI) =============
 app.post('/api/ai-symptom-check', async (req, res) => {
+  // Enable CORS
+  res.setHeader('Access-Control-Allow-Credentials', true);
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
+  res.setHeader(
+    'Access-Control-Allow-Headers',
+    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
+  );
+
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
   try {
     const { symptoms, petType, petAge, petName, petBreed, petWeight } = req.body;
     
-    console.log("Received request:", { symptoms, petType, petAge, petName });
+    console.log("AI Symptom Check Request:", { symptoms, petType, petAge, petName });
     
     // Pet information for AI
     const petInfo = `
@@ -673,34 +691,87 @@ app.post('/api/ai-symptom-check', async (req, res) => {
       6. Recommendation (choose one: Home care, Visit vet within 3 days, Visit vet within 24 hours, Emergency)
       
       Format the response as JSON with these exact keys: condition, severity, specialty, description, immediateCare, recommendation
+      
+      Return ONLY valid JSON, no other text.
     `;
     
-    // For now, return mock data since OpenAI might not be configured
-    // This will help you test if the endpoint is working
-    const mockResponse = {
-      condition: "Seasonal Allergies",
-      severity: "Mild",
-      specialty: "Dermatology",
-      description: "Your pet appears to have seasonal allergies causing itching and discomfort.",
-      immediateCare: "Keep your pet in a clean environment, wipe paws after walks, consider antihistamines after consulting vet.",
-      recommendation: "Visit vet within 3 days"
-    };
+    // Call OpenRouter (using the OpenAI-compatible interface)
+    // You can change the model here - try free models first!
+    const completion = await openrouter.chat.completions.create({
+      model: "nvidia/nemotron-3-super-120b-a12b:free",  // or "meta-llama/llama-3.2-3b-instruct:free" for free tier
+      messages: [
+        { 
+          role: "system", 
+          content: "You are a veterinary AI assistant. Provide accurate, helpful information about pet health. Always recommend consulting a real veterinarian for serious conditions. Keep responses concise. Return ONLY valid JSON." 
+        },
+        { role: "user", content: prompt }
+      ],
+      temperature: 0.7,
+      max_tokens: 500,
+    });
     
-    // Find matching doctors based on specialty
+    console.log("OpenRouter Response received!");
+    
+    // Parse the AI response
+    let aiResponse;
+    try {
+      const responseText = completion.choices[0].message.content;
+      console.log("Raw AI Response:", responseText);
+      // Clean the response (remove any markdown code blocks if present)
+      const cleanedResponse = responseText.replace(/```json\n?/g, '').replace(/```\n?/g, '').trim();
+      aiResponse = JSON.parse(cleanedResponse);
+    } catch (parseError) {
+      console.error("Error parsing AI response:", parseError);
+      // Fallback response
+      aiResponse = {
+        condition: "General Health Issue",
+        severity: "Mild",
+        specialty: "General",
+        description: "Please consult a veterinarian for proper diagnosis.",
+        immediateCare: "Monitor your pet's symptoms closely.",
+        recommendation: "Visit vet within 3 days"
+      };
+    }
+    
+    // Find matching doctors based on specialty from AI
     const { db } = await connectToDatabase();
     const doctorsCollection = db.collection("doctors");
     
     const matchedDoctors = await doctorsCollection.find({
-      specialties: { $regex: mockResponse.specialty, $options: 'i' }
+      specialties: { $regex: aiResponse.specialty, $options: 'i' }
     }).limit(5).toArray();
     
-    res.json({
-      aiResult: mockResponse,
+    res.status(200).json({
+      aiResult: aiResponse,
       recommendedDoctors: matchedDoctors
     });
     
   } catch (error) {
-    console.error('AI Symptom Check Error:', error);
+    console.error('OpenRouter Error:', error);
+    // Return a helpful fallback response
+    res.status(200).json({
+      aiResult: {
+        condition: "AI Service Temporary Issue",
+        severity: "Unknown",
+        specialty: "General",
+        description: "We're having trouble connecting to the AI service. Please consult a veterinarian directly.",
+        immediateCare: "Monitor your pet's symptoms and consult a veterinarian if they worsen.",
+        recommendation: "Visit vet within 3 days"
+      },
+      recommendedDoctors: []
+    });
+  }
+});
+
+// Add this endpoint to test available models
+app.get('/api/available-models', async (req, res) => {
+  try {
+    const response = await fetch('https://openrouter.ai/api/v1/models');
+    const models = await response.json();
+    // Return only model IDs for the frontend to use
+    const modelList = models.data.map(m => ({ id: m.id, name: m.name }));
+    res.json({ models: modelList });
+  } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
