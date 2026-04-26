@@ -11,6 +11,12 @@
       "src": "/(.*)",
       "dest": "index.js",
       "methods": ["GET", "POST","PUT","PATCH","DELETE","OPTIONS"]
+    },
+        {
+      "src": "/api/ai-symptom-check",
+      "dest": "/api/ai-symptom-check.js",
+      "methods": ["GET", "POST","PUT","PATCH","DELETE","OPTIONS"]
     }
   ]
 }
+
