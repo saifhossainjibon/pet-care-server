@@ -495,7 +495,7 @@ app.post("/appointments", async (req, res) => {
   }
 });
 
-// UPDATE appointment
+// UPDATE appointments
 app.put("/appointments/:id", async (req, res) => {
   try {
     const { db } = await connectToDatabase();
